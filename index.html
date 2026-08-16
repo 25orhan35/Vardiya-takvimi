@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vardiya Takvimi</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:#f3f4f6;
+color:#111827
+}
+
+header{
+background:#111827;
+color:white;
+text-align:center;
+padding:20px
+}
+
+header h1{
+margin:0;
+font-size:24px
+}
+
+.monthbar{
+display:flex;
+justify-content:center;
+align-items:center;
+gap:25px;
+padding:18px
+}
+
+.monthbar button{
+width:42px;
+height:42px;
+border:0;
+border-radius:50%;
+background:#111827;
+color:white;
+font-size:24px
+}
+
+#monthName{
+font-size:20px;
+font-weight:bold;
+min-width:170px;
+text-align:center
+}
+
+.calendar{
+max-width:650px;
+margin:auto;
+padding:10px
+}
+
+.weekdays,
+.days{
+display:grid;
+grid-template-columns:repeat(7,1fr);
+gap:5px
+}
+
+.weekdays div{
+text-align:center;
+font-weight:bold;
+font-size:12px;
+padding:8px 0;
+color:#64748b
+}
+
+.day{
+height:72px;
+background:white;
+border-radius:10px;
+text-align:center;
+padding-top:8px;
+box-shadow:0 2px 7px rgba(0,0,0,.06);
+cursor:pointer
+}
+
+.empty{
+background:transparent;
+box-shadow:none;
+cursor:default
+}
+
+.number{
+font-weight:bold;
+font-size:17px
+}
+
+.status{
+font-size:13px;
+font-weight:bold;
+margin-top:7px
+}
+
+.c{
+color:#15803d
+}
+
+.i{
+color:#2563eb
+}
+
+.today{
+outline:2px solid #111827
+}
+
+.info{
+max-width:650px;
+margin:15px auto;
+background:white;
+border-radius:12px;
+padding:15px;
+text-align:center;
+color:#64748b
+}
+
+.stats{
+max-width:650px;
+margin:15px auto;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+padding:10px
+}
+
+.stat{
+background:white;
+padding:15px;
+border-radius:12px;
+text-align:center
+}
+
+.stat strong{
+display:block;
+font-size:22px;
+margin-top:5px
+}
+
+.backup{
+max-width:650px;
+margin:15px auto;
+padding:10px;
+display:flex;
+gap:10px
+}
+
+.backup button{
+flex:1;
+padding:12px;
+border:0;
+border-radius:10px;
+background:#111827;
+color:white;
+font-weight:bold
+}
+
+footer{
+text-align:center;
+font-size:12px;
+color:#64748b;
+padding:20px
+}
+
+@media(max-width:450px){
+.day{
+height:65px
+}
+
+#monthName{
+font-size:18px
+}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>📅 Vardiya Takvimi</h1>
+</header>
+
+<div class="monthbar">
+
+<button onclick="changeMonth(-1)">‹</button>
+
+<div id="monthName"></div>
+
+<button onclick="changeMonth(1)">›</button>
+
+</div>
+
+<div class="calendar">
+
+<div class="weekdays">
+<div>Pzt</div>
+<div>Sal</div>
+<div>Çar</div>
+<div>Per</div>
+<div>Cum</div>
+<div>Cmt</div>
+<div>Paz</div>
+</div>
+
+<div id="days" class="days"></div>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+Bu ay Çalışma
+<strong id="workCount">0</strong>
+</div>
+
+<div class="stat">
+Bu ay İzin
+<strong id="leaveCount">0</strong>
+</div>
+
+</div>
+
+<div class="info">
+
+Güne dokun:
+
+<br>
+
+<b>Boş → Ç → İ → Boş</b>
+
+<br><br>
+
+<span style="color:#15803d">Ç = Çalışma</span>
+&nbsp;&nbsp;
+<span style="color:#2563eb">İ = İzin</span>
+
+</div>
+
+<div class="backup">
+
+<button onclick="backupData()">
+📤 Yedekle
+</button>
+
+<button onclick="restoreData()">
+📥 Geri Yükle
+</button>
+
+</div>
+
+<footer>
+Vardiya Takvimi
+</footer>
+
+<script>
+
+let current=new Date();
+
+let year=current.getFullYear();
+
+let month=current.getMonth();
+
+let records=
+JSON.parse(
+localStorage.getItem("vardiyaKayitlari") || "{}"
+);
+
+
+const months=[
+"Ocak",
+"Şubat",
+"Mart",
+"Nisan",
+"Mayıs",
+"Haziran",
+"Temmuz",
+"Ağustos",
+"Eylül",
+"Ekim",
+"Kasım",
+"Aralık"
+];
+
+
+function storageKey(y,m,d){
+
+return y+"-"+m+"-"+d;
+
+}
+
+
+function save(){
+
+localStorage.setItem(
+"vardiyaKayitlari",
+JSON.stringify(records)
+);
+
+}
+
+
+function render(){
+
+document.getElementById("monthName").textContent=
+months[month]+" "+year;
+
+
+let days=
+document.getElementById("days");
+
+days.innerHTML="";
+
+
+let first=
+new Date(year,month,1).getDay();
+
+
+first=
+first===0 ? 6 : first-1;
+
+
+let total=
+new Date(year,month+1,0).getDate();
+
+
+for(let i=0;i<first;i++){
+
+let empty=
+document.createElement("div");
+
+empty.className="day empty";
+
+days.appendChild(empty);
+
+}
+
+
+let work=0;
+
+let leave=0;
+
+
+let today=
+new Date();
+
+
+for(let d=1;d<=total;d++){
+
+let cell=
+document.createElement("div");
+
+cell.className="day";
+
+
+if(
+d===today.getDate() &&
+month===today.getMonth() &&
+year===today.getFullYear()
+){
+
+cell.classList.add("today");
+
+}
+
+
+let number=
+document.createElement("div");
+
+number.className="number";
+
+number.textContent=d;
+
+
+let status=
+document.createElement("div");
+
+status.className="status";
+
+
+let key=
+storageKey(year,month,d);
+
+
+if(records[key]==="C"){
+
+status.textContent="Ç";
+
+status.classList.add("c");
+
+work++;
+
+}
+
+else if(records[key]==="I"){
+
+status.textContent="İ";
+
+status.classList.add("i");
+
+leave++;
+
+}
+
+
+cell.appendChild(number);
+
+cell.appendChild(status);
+
+
+cell.onclick=function(){
+
+cycle(key);
+
+};
+
+
+days.appendChild(cell);
+
+}
+
+
+document.getElementById("workCount")
+.textContent=work;
+
+
+document.getElementById("leaveCount")
+.textContent=leave;
+
+}
+
+
+function cycle(key){
+
+if(!records[key]){
+
+records[key]="C";
+
+}
+
+else if(records[key]==="C"){
+
+records[key]="I";
+
+}
+
+else{
+
+delete records[key];
+
+}
+
+
+save();
+
+render();
+
+}
+
+
+function changeMonth(amount){
+
+month+=amount;
+
+
+if(month<0){
+
+month=11;
+
+year--;
+
+}
+
+
+if(month>11){
+
+month=0;
+
+year++;
+
+}
+
+
+render();
+
+}
+
+
+/* YEDEKLE */
+
+function backupData(){
+
+let data=
+JSON.stringify(records,null,2);
+
+
+let blob=
+new Blob(
+[data],
+{type:"application/json"}
+);
+
+
+let url=
+URL.createObjectURL(blob);
+
+
+let a=
+document.createElement("a");
+
+a.href=url;
+
+a.download="vardiya-yedek.json";
+
+a.click();
+
+URL.revokeObjectURL(url);
+
+}
+
+
+/* GERİ YÜKLE */
+
+function restoreData(){
+
+let input=
+document.createElement("input");
+
+input.type="file";
+
+input.accept=".json";
+
+
+input.onchange=function(e){
+
+let file=e.target.files[0];
+
+if(!file)return;
+
+
+let reader=
+new FileReader();
+
+
+reader.onload=function(){
+
+try{
+
+records=
+JSON.parse(reader.result);
+
+
+save();
+
+render();
+
+alert("Yedek başarıyla geri yüklendi.");
+
+}
+
+catch{
+
+alert("Yedek dosyası geçersiz.");
+
+}
+
+};
+
+
+reader.readAsText(file);
+
+};
+
+
+input.click();
+
+}
+
+
+render();
+
+</script>
+
+</body>
+  </html>
